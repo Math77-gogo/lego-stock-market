@@ -1,0 +1,21 @@
+# Worker + HTTPS reverse proxy (Caddy, automatic Let's Encrypt certificate).
+services:
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile.worker
+    env_file: /etc/lsm-worker.env
+    restart: unless-stopped
+    mem_limit: 600m
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      - WORKER_HOST=${WORKER_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [worker]
+volumes:
+  caddy_data:
