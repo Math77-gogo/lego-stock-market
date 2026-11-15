@@ -53,7 +53,10 @@ export function computeSyncPlan(input: PlanInput): SyncPlan {
   const base = Math.round(Math.min(Math.max(ideal, minSec), maxSec));
 
   const intervals = Object.fromEntries(
-    (Object.keys(CLASS_MULTIPLIER) as TargetClass[]).map((k) => [k, Math.round(base * CLASS_MULTIPLIER[k])]),
+    (Object.keys(CLASS_MULTIPLIER) as TargetClass[]).map((k) => [
+      k,
+      Math.round(base * CLASS_MULTIPLIER[k]),
+    ]),
   ) as Record<TargetClass, number>;
 
   const projected = (Object.keys(input.counts) as TargetClass[]).reduce(

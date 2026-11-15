@@ -6,7 +6,18 @@ import type { Transport, TransportRequest } from "@/server/bricklink/client";
  */
 export interface MockState {
   items: Record<string, { name: string; category_id: number; year_released: number }>;
-  prices: Record<string, { qty_avg: string; avg: string; min: string; max: string; units: number; total: number; currency?: string }>;
+  prices: Record<
+    string,
+    {
+      qty_avg: string;
+      avg: string;
+      min: string;
+      max: string;
+      units: number;
+      total: number;
+      currency?: string;
+    }
+  >;
   failNext: { status?: number; metaCode?: number; body?: string; throws?: boolean }[];
   calls: TransportRequest[];
 }
@@ -14,15 +25,54 @@ export interface MockState {
 export function createMockState(): MockState {
   return {
     items: {
-      "SET/75192-1": { name: "Millennium Falcon - UCS (2nd edition)", category_id: 65, year_released: 2017 },
+      "SET/75192-1": {
+        name: "Millennium Falcon - UCS (2nd edition)",
+        category_id: 65,
+        year_released: 2017,
+      },
       "SET/10497-1": { name: "Galaxy Explorer", category_id: 5, year_released: 2022 },
     },
     prices: {
-      "75192-1:N:sold": { qty_avg: "1123.4567", avg: "1130.0000", min: "899.0000", max: "1499.9900", units: 42, total: 44 },
-      "75192-1:U:sold": { qty_avg: "850.1000", avg: "861.2500", min: "600.0000", max: "1100.0000", units: 17, total: 17 },
-      "75192-1:N:stock": { qty_avg: "1299.0000", avg: "1320.0000", min: "1099.0000", max: "1999.0000", units: 30, total: 35 },
-      "75192-1:U:stock": { qty_avg: "999.0000", avg: "1010.0000", min: "800.0000", max: "1300.0000", units: 9, total: 9 },
-      "10497-1:N:sold": { qty_avg: "140.0000", avg: "142.0000", min: "120.0000", max: "170.0000", units: 80, total: 85 },
+      "75192-1:N:sold": {
+        qty_avg: "1123.4567",
+        avg: "1130.0000",
+        min: "899.0000",
+        max: "1499.9900",
+        units: 42,
+        total: 44,
+      },
+      "75192-1:U:sold": {
+        qty_avg: "850.1000",
+        avg: "861.2500",
+        min: "600.0000",
+        max: "1100.0000",
+        units: 17,
+        total: 17,
+      },
+      "75192-1:N:stock": {
+        qty_avg: "1299.0000",
+        avg: "1320.0000",
+        min: "1099.0000",
+        max: "1999.0000",
+        units: 30,
+        total: 35,
+      },
+      "75192-1:U:stock": {
+        qty_avg: "999.0000",
+        avg: "1010.0000",
+        min: "800.0000",
+        max: "1300.0000",
+        units: 9,
+        total: 9,
+      },
+      "10497-1:N:sold": {
+        qty_avg: "140.0000",
+        avg: "142.0000",
+        min: "120.0000",
+        max: "170.0000",
+        units: 80,
+        total: 85,
+      },
       "10497-1:U:sold": { qty_avg: "0", avg: "0", min: "0", max: "0", units: 0, total: 0 },
     },
     failNext: [],
@@ -30,8 +80,14 @@ export function createMockState(): MockState {
   };
 }
 
-const ok = (data: unknown) => ({ status: 200, body: JSON.stringify({ meta: { code: 200, message: "OK", description: "OK" }, data }) });
-const meta = (code: number, message: string) => ({ status: code, body: JSON.stringify({ meta: { code, message, description: message } }) });
+const ok = (data: unknown) => ({
+  status: 200,
+  body: JSON.stringify({ meta: { code: 200, message: "OK", description: "OK" }, data }),
+});
+const meta = (code: number, message: string) => ({
+  status: code,
+  body: JSON.stringify({ meta: { code, message, description: message } }),
+});
 
 export function mockTransport(state: MockState): Transport {
   const t: Transport = async (req) => {
@@ -68,7 +124,18 @@ export function mockTransport(state: MockState): Transport {
         qty_avg_price: p.qty_avg,
         unit_quantity: p.units,
         total_quantity: p.total,
-        price_detail: p.units > 0 ? [{ quantity: 1, unit_price: p.qty_avg, date_ordered: "2026-11-01T10:00:00.000Z", buyer_country_code: "CA", seller_country_code: "US" }] : [],
+        price_detail:
+          p.units > 0
+            ? [
+                {
+                  quantity: 1,
+                  unit_price: p.qty_avg,
+                  date_ordered: "2026-11-01T10:00:00.000Z",
+                  buyer_country_code: "CA",
+                  seller_country_code: "US",
+                },
+              ]
+            : [],
       });
     }
     const itemMatch = path.match(/^\/items\/(\w+)\/([^/]+)$/);

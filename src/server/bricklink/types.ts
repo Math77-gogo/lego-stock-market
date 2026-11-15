@@ -1,6 +1,16 @@
 import { z } from "zod";
 
-export const ITEM_TYPES = ["SET", "MINIFIG", "PART", "BOOK", "GEAR", "CATALOG", "INSTRUCTION", "UNSORTED_LOT", "ORIGINAL_BOX"] as const;
+export const ITEM_TYPES = [
+  "SET",
+  "MINIFIG",
+  "PART",
+  "BOOK",
+  "GEAR",
+  "CATALOG",
+  "INSTRUCTION",
+  "UNSORTED_LOT",
+  "ORIGINAL_BOX",
+] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 export type Condition = "N" | "U";
 export type GuideType = "sold" | "stock";

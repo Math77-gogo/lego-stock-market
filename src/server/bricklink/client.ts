@@ -24,7 +24,9 @@ export interface TransportResponse {
   status: number;
   body: string;
 }
-export type Transport = ((req: TransportRequest) => Promise<TransportResponse>) & { isMock?: boolean };
+export type Transport = ((req: TransportRequest) => Promise<TransportResponse>) & {
+  isMock?: boolean;
+};
 
 export interface RequestLogEntry {
   method: string;
@@ -49,7 +51,11 @@ export interface BrickLinkClientOptions {
 }
 
 export const fetchTransport: Transport = async (req) => {
-  const res = await fetch(req.url, { method: req.method, headers: req.headers, signal: req.signal });
+  const res = await fetch(req.url, {
+    method: req.method,
+    headers: req.headers,
+    signal: req.signal,
+  });
   return { status: res.status, body: await res.text() };
 };
 
@@ -92,7 +98,11 @@ export class BrickLinkClient {
       currency_code: q.currencyCode ?? "CAD",
       vat: "N",
     };
-    return this.request(`/items/${q.type}/${encodeURIComponent(q.no)}/price`, params, priceGuideSchema);
+    return this.request(
+      `/items/${q.type}/${encodeURIComponent(q.no)}/price`,
+      params,
+      priceGuideSchema,
+    );
   }
 
   getCategories(): Promise<Category[]> {
@@ -100,15 +110,24 @@ export class BrickLinkClient {
   }
 
   /** Requests are serialized and spaced to stay well inside BrickLink's limits. */
-  private request<T>(path: string, params: Record<string, string>, schema: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
+  private request<T>(
+    path: string,
+    params: Record<string, string>,
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  ): Promise<T> {
     const run = this.queue.then(() => this.send(path, params, schema));
     this.queue = run.catch(() => undefined);
     return run;
   }
 
-  private async send<T>(path: string, params: Record<string, string>, schema: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
+  private async send<T>(
+    path: string,
+    params: Record<string, string>,
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  ): Promise<T> {
     const credentials = this.opts.credentials;
-    if (!credentials) throw new BrickLinkError("not_configured", "BrickLink API credentials are not configured");
+    if (!credentials)
+      throw new BrickLinkError("not_configured", "BrickLink API credentials are not configured");
     await this.opts.beforeRequest?.();
 
     const spacing = this.opts.minSpacingMs ?? 0;
@@ -139,24 +158,45 @@ export class BrickLinkClient {
       }
       log.httpStatus = res.status;
 
-      if (res.status === 429) throw new BrickLinkError("rate_limited", "BrickLink rate limit reached", 429);
-      if (res.status >= 500) throw new BrickLinkError("unavailable", `BrickLink returned HTTP ${res.status}`, res.status);
+      if (res.status === 429)
+        throw new BrickLinkError("rate_limited", "BrickLink rate limit reached", 429);
+      if (res.status >= 500)
+        throw new BrickLinkError(
+          "unavailable",
+          `BrickLink returned HTTP ${res.status}`,
+          res.status,
+        );
 
       let json: unknown;
       try {
         json = JSON.parse(res.body);
       } catch {
-        throw new BrickLinkError("bad_response", "BrickLink returned a non-JSON response", res.status);
+        throw new BrickLinkError(
+          "bad_response",
+          "BrickLink returned a non-JSON response",
+          res.status,
+        );
       }
       const envelope = z.object({ meta: metaSchema, data: z.unknown().optional() }).safeParse(json);
-      if (!envelope.success) throw new BrickLinkError("bad_response", "Unexpected BrickLink response envelope", res.status);
+      if (!envelope.success)
+        throw new BrickLinkError(
+          "bad_response",
+          "Unexpected BrickLink response envelope",
+          res.status,
+        );
 
       const { code, message, description } = envelope.data.meta;
       log.bricklinkCode = code;
       if (code !== 200) throw mapMetaError(code, `${message} ${description}`.trim(), res.status);
 
       const data = schema.safeParse(envelope.data.data);
-      if (!data.success) throw new BrickLinkError("bad_response", "BrickLink response did not match the documented schema", res.status, code);
+      if (!data.success)
+        throw new BrickLinkError(
+          "bad_response",
+          "BrickLink response did not match the documented schema",
+          res.status,
+          code,
+        );
       log.ok = true;
       return data.data;
     } finally {

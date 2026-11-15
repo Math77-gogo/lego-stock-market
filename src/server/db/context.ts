@@ -11,7 +11,11 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * to every query, so one user can never read or change another user's portfolio, even if the
  * application code had a bug.
  */
-export async function withUser<T>(userId: string, fn: (db: Db) => Promise<T>, pool = getPool()): Promise<T> {
+export async function withUser<T>(
+  userId: string,
+  fn: (db: Db) => Promise<T>,
+  pool = getPool(),
+): Promise<T> {
   if (!UUID_RE.test(userId)) throw new Error("Invalid user id");
   const client = await pool.connect();
   try {

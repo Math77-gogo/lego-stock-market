@@ -3,12 +3,17 @@ import path from "node:path";
 import type pg from "pg";
 
 /** Applies every supabase/migrations/*.sql file once, in filename order. */
-export async function runMigrations(client: pg.Client | pg.PoolClient, dir: string): Promise<string[]> {
+export async function runMigrations(
+  client: pg.Client | pg.PoolClient,
+  dir: string,
+): Promise<string[]> {
   await client.query(
     `create table if not exists public.schema_migrations (name text primary key, applied_at timestamptz not null default now())`,
   );
   const done = new Set(
-    (await client.query<{ name: string }>("select name from public.schema_migrations")).rows.map((r) => r.name),
+    (await client.query<{ name: string }>("select name from public.schema_migrations")).rows.map(
+      (r) => r.name,
+    ),
   );
   const files = (await readdir(dir)).filter((f) => f.endsWith(".sql")).sort();
   const applied: string[] = [];

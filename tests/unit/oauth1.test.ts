@@ -29,17 +29,30 @@ describe("OAuth 1.0a signing", () => {
   });
 
   it("includes query parameters in the base string and builds a header", () => {
-    const base = buildSignatureBaseString("get", "https://api.bricklink.com/api/store/v1/items/SET/75192-1/price?guide_type=sold", [
-      ["guide_type", "sold"],
-      ["oauth_nonce", "n"],
-    ]);
-    expect(base).toBe("GET&https%3A%2F%2Fapi.bricklink.com%2Fapi%2Fstore%2Fv1%2Fitems%2FSET%2F75192-1%2Fprice&guide_type%3Dsold%26oauth_nonce%3Dn");
+    const base = buildSignatureBaseString(
+      "get",
+      "https://api.bricklink.com/api/store/v1/items/SET/75192-1/price?guide_type=sold",
+      [
+        ["guide_type", "sold"],
+        ["oauth_nonce", "n"],
+      ],
+    );
+    expect(base).toBe(
+      "GET&https%3A%2F%2Fapi.bricklink.com%2Fapi%2Fstore%2Fv1%2Fitems%2FSET%2F75192-1%2Fprice&guide_type%3Dsold%26oauth_nonce%3Dn",
+    );
     const { header } = signRequest({
       method: "GET",
       url: "https://api.bricklink.com/api/store/v1/items/SET/75192-1",
-      credentials: { consumerKey: "ck", consumerSecret: "SECRET-CONSUMER-VALUE", tokenValue: "tv", tokenSecret: "SECRET-TOKEN-VALUE" },
+      credentials: {
+        consumerKey: "ck",
+        consumerSecret: "SECRET-CONSUMER-VALUE",
+        tokenValue: "tv",
+        tokenSecret: "SECRET-TOKEN-VALUE",
+      },
     });
-    expect(header).toMatch(/^OAuth oauth_consumer_key="ck", .*oauth_signature_method="HMAC-SHA1".*oauth_token="tv".*oauth_signature="/);
+    expect(header).toMatch(
+      /^OAuth oauth_consumer_key="ck", .*oauth_signature_method="HMAC-SHA1".*oauth_token="tv".*oauth_signature="/,
+    );
     expect(header).not.toContain("SECRET-");
   });
 });

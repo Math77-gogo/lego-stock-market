@@ -6,7 +6,12 @@ import { createMockState, mockTransport } from "../fixtures/bricklink";
 const creds = { consumerKey: "a", consumerSecret: "b", tokenValue: "c", tokenSecret: "d" };
 const make = (state = createMockState(), credentials: typeof creds | null = creds) => ({
   state,
-  client: new BrickLinkClient({ baseUrl: "https://api.bricklink.com/api/store/v1", credentials, mode: "test", transport: mockTransport(state) }),
+  client: new BrickLinkClient({
+    baseUrl: "https://api.bricklink.com/api/store/v1",
+    credentials,
+    mode: "test",
+    transport: mockTransport(state),
+  }),
 });
 
 describe("BrickLinkClient", () => {
@@ -19,8 +24,18 @@ describe("BrickLinkClient", () => {
 
   it("requests the sold price guide in CAD for each condition separately", async () => {
     const { client, state } = make();
-    const n = await client.getPriceGuide({ type: "SET", no: "75192-1", condition: "N", guideType: "sold" });
-    const u = await client.getPriceGuide({ type: "SET", no: "75192-1", condition: "U", guideType: "sold" });
+    const n = await client.getPriceGuide({
+      type: "SET",
+      no: "75192-1",
+      condition: "N",
+      guideType: "sold",
+    });
+    const u = await client.getPriceGuide({
+      type: "SET",
+      no: "75192-1",
+      condition: "U",
+      guideType: "sold",
+    });
     expect(n.new_or_used).toBe("N");
     expect(u.new_or_used).toBe("U");
     expect(n.qty_avg_price).toBeCloseTo(1123.4567);
@@ -35,7 +50,15 @@ describe("BrickLinkClient", () => {
 
   it("maps BrickLink errors to typed errors", async () => {
     const { client, state } = make();
-    state.failNext.push({ metaCode: 401 }, { metaCode: 404 }, { status: 429 }, { status: 503 }, { body: "<html>", status: 200 }, { throws: true }, { body: JSON.stringify({ meta: { code: 200 }, data: { nope: 1 } }) });
+    state.failNext.push(
+      { metaCode: 401 },
+      { metaCode: 404 },
+      { status: 429 },
+      { status: 503 },
+      { body: "<html>", status: 200 },
+      { throws: true },
+      { body: JSON.stringify({ meta: { code: 200 }, data: { nope: 1 } }) },
+    );
     const kinds: string[] = [];
     for (let i = 0; i < 7; i++) {
       try {
@@ -44,16 +67,34 @@ describe("BrickLinkClient", () => {
         kinds.push((e as BrickLinkError).kind);
       }
     }
-    expect(kinds).toEqual(["unauthorized", "not_found", "rate_limited", "unavailable", "bad_response", "network", "bad_response"]);
+    expect(kinds).toEqual([
+      "unauthorized",
+      "not_found",
+      "rate_limited",
+      "unavailable",
+      "bad_response",
+      "network",
+      "bad_response",
+    ]);
   });
 
   it("refuses to run without credentials", async () => {
     const { client } = make(createMockState(), null);
-    await expect(client.getItem("SET", "75192-1")).rejects.toMatchObject({ kind: "not_configured" });
+    await expect(client.getItem("SET", "75192-1")).rejects.toMatchObject({
+      kind: "not_configured",
+    });
   });
 
   it("refuses a mock transport in production mode", () => {
-    expect(() => new BrickLinkClient({ baseUrl: "https://x.test", credentials: creds, mode: "production", transport: mockTransport(createMockState()) })).toThrow(/production/);
+    expect(
+      () =>
+        new BrickLinkClient({
+          baseUrl: "https://x.test",
+          credentials: creds,
+          mode: "production",
+          transport: mockTransport(createMockState()),
+        }),
+    ).toThrow(/production/);
   });
 
   it("reports every request for quota accounting and honors beforeRequest", async () => {
@@ -71,7 +112,9 @@ describe("BrickLinkClient", () => {
       },
     });
     await client.getItem("SET", "75192-1");
-    await expect(client.getItem("SET", "75192-1")).rejects.toMatchObject({ kind: "quota_exhausted" });
+    await expect(client.getItem("SET", "75192-1")).rejects.toMatchObject({
+      kind: "quota_exhausted",
+    });
     expect(logs).toHaveLength(1);
     expect(state.calls).toHaveLength(1);
   });

@@ -66,7 +66,10 @@ function send(res: http.ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-const lookupSchema = z.object({ type: z.enum(ITEM_TYPES).default("SET"), no: z.string().trim().min(1).max(64) });
+const lookupSchema = z.object({
+  type: z.enum(ITEM_TYPES).default("SET"),
+  no: z.string().trim().min(1).max(64),
+});
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -83,7 +86,8 @@ const server = http.createServer(async (req, res) => {
         void tick("new_set"); // fetch its first price observations right away
         return send(res, 200, { set });
       } catch (err) {
-        if (err instanceof BrickLinkError) return send(res, err.kind === "not_found" ? 404 : 502, { error: err.kind });
+        if (err instanceof BrickLinkError)
+          return send(res, err.kind === "not_found" ? 404 : 502, { error: err.kind });
         throw err;
       }
     }

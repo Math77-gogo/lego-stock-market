@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-const bool = z
-  .enum(["true", "false", "1", "0"])
-  .transform((v) => v === "true" || v === "1");
+const bool = z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1");
 
 const optionalSecret = z
   .string()
@@ -53,8 +51,18 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 }
 
 export function bricklinkCredentials(cfg: AppConfig) {
-  const { BRICKLINK_CONSUMER_KEY, BRICKLINK_CONSUMER_SECRET, BRICKLINK_TOKEN_VALUE, BRICKLINK_TOKEN_SECRET } = cfg;
-  if (!BRICKLINK_CONSUMER_KEY || !BRICKLINK_CONSUMER_SECRET || !BRICKLINK_TOKEN_VALUE || !BRICKLINK_TOKEN_SECRET) {
+  const {
+    BRICKLINK_CONSUMER_KEY,
+    BRICKLINK_CONSUMER_SECRET,
+    BRICKLINK_TOKEN_VALUE,
+    BRICKLINK_TOKEN_SECRET,
+  } = cfg;
+  if (
+    !BRICKLINK_CONSUMER_KEY ||
+    !BRICKLINK_CONSUMER_SECRET ||
+    !BRICKLINK_TOKEN_VALUE ||
+    !BRICKLINK_TOKEN_SECRET
+  ) {
     return null;
   }
   return {

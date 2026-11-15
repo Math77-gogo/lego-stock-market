@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { Db } from "../db/context";
-import { latestObservations, observationSeries, type StoredObservation } from "../market/repository";
+import {
+  latestObservations,
+  observationSeries,
+  type StoredObservation,
+} from "../market/repository";
 import { mapSet, SET_COLS, type LegoSet } from "../catalog/service";
 import {
   changeOverPeriod,
@@ -120,7 +124,7 @@ export async function loadPositions(
   }
 
   return holdings.rows.map((h) => {
-    const set = mapSet({ ...(h as never), id: h.set_id });
+    const set = mapSet({ ...h, id: h.set_id } as unknown as Parameters<typeof mapSet>[0]);
     const key = `${h.set_id}:${h.condition}`;
     const ref = referencePrice(latest.get(key), now, opts.engine);
     const series = soldSeries(recent.get(key) ?? [], opts.engine.currency);
@@ -146,7 +150,9 @@ export async function loadPositions(
       reference: ref,
       dayChangePct: day?.pct ?? null,
       openLots: lots.openLots,
-      transactions: transactions.sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1)),
+      transactions: transactions.sort((a, b) =>
+        a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1,
+      ),
       lotErrors: lots.errors,
       soldCostBasis: lots.soldCostBasisCents / 100,
     };
@@ -176,12 +182,17 @@ export async function getDefaultPortfolio(db: Db, userId: string): Promise<Portf
     "select id, name, base_currency from public.portfolios where user_id = $1 order by created_at limit 1",
     [userId],
   );
-  if (res.rows[0]) return { id: res.rows[0].id, name: res.rows[0].name, currency: res.rows[0].base_currency };
+  if (res.rows[0])
+    return { id: res.rows[0].id, name: res.rows[0].name, currency: res.rows[0].base_currency };
   const created = await db.query<{ id: string; name: string; base_currency: string }>(
     "insert into public.portfolios (user_id, name) values ($1, 'My LEGO Portfolio') returning id, name, base_currency",
     [userId],
   );
-  return { id: created.rows[0]!.id, name: created.rows[0]!.name, currency: created.rows[0]!.base_currency };
+  return {
+    id: created.rows[0]!.id,
+    name: created.rows[0]!.name,
+    currency: created.rows[0]!.base_currency,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -192,7 +203,10 @@ const money = z.coerce.number().min(0).max(10_000_000).multipleOf(0.01);
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((d) => !Number.isNaN(Date.parse(d)) && d <= new Date().toISOString().slice(0, 10), "Date cannot be in the future");
+  .refine(
+    (d) => !Number.isNaN(Date.parse(d)) && d <= new Date().toISOString().slice(0, 10),
+    "Date cannot be in the future",
+  );
 
 export const addPurchaseSchema = z.object({
   legoSetId: z.string().uuid(),
@@ -214,16 +228,22 @@ export const transactionSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-export const updateTransactionSchema = transactionSchema.omit({ holdingId: true, type: true }).extend({
-  transactionId: z.string().uuid(),
-});
+export const updateTransactionSchema = transactionSchema
+  .omit({ holdingId: true, type: true })
+  .extend({
+    transactionId: z.string().uuid(),
+  });
 
 export class ValidationError extends Error {
   override name = "ValidationError";
 }
 
 /** Adds a purchase, creating the (set, condition) holding if needed. */
-export async function addPurchase(db: Db, userId: string, input: z.infer<typeof addPurchaseSchema>): Promise<string> {
+export async function addPurchase(
+  db: Db,
+  userId: string,
+  input: z.infer<typeof addPurchaseSchema>,
+): Promise<string> {
   const portfolio = await getDefaultPortfolio(db, userId);
   const holding = await db.query<{ id: string }>(
     `insert into public.holdings (portfolio_id, lego_set_id, condition)
@@ -235,24 +255,42 @@ export async function addPurchase(db: Db, userId: string, input: z.infer<typeof 
   const holdingId = holding.rows[0]!.id;
   await insertTx(db, userId, { holdingId, type: "BUY", ...input });
   if (input.notes) {
-    await db.query("update public.holdings set notes = $2 where id = $1 and notes is null", [holdingId, input.notes]);
+    await db.query("update public.holdings set notes = $2 where id = $1 and notes is null", [
+      holdingId,
+      input.notes,
+    ]);
   }
   return holdingId;
 }
 
-export async function recordTransaction(db: Db, userId: string, input: z.infer<typeof transactionSchema>): Promise<void> {
+export async function recordTransaction(
+  db: Db,
+  userId: string,
+  input: z.infer<typeof transactionSchema>,
+): Promise<void> {
   const owns = await db.query("select 1 from public.holdings where id = $1", [input.holdingId]);
   if (owns.rowCount === 0) throw new ValidationError("Holding not found");
   if (input.type === "SELL") {
     await assertValidAfterChange(db, input.holdingId, (txs) => [
       ...txs,
-      { id: "new", type: "SELL", quantity: input.quantity, unitPrice: input.unitPrice, fees: input.fees, date: input.date, createdAt: Date.now() },
+      {
+        id: "new",
+        type: "SELL",
+        quantity: input.quantity,
+        unitPrice: input.unitPrice,
+        fees: input.fees,
+        date: input.date,
+        createdAt: Date.now(),
+      },
     ]);
   }
   await insertTx(db, userId, input);
 }
 
-export async function updateTransaction(db: Db, input: z.infer<typeof updateTransactionSchema>): Promise<void> {
+export async function updateTransaction(
+  db: Db,
+  input: z.infer<typeof updateTransactionSchema>,
+): Promise<void> {
   const existing = await db.query<{ holding_id: string }>(
     "select holding_id from public.portfolio_transactions where id = $1",
     [input.transactionId],
@@ -261,13 +299,28 @@ export async function updateTransaction(db: Db, input: z.infer<typeof updateTran
   if (!holdingId) throw new ValidationError("Transaction not found");
   await assertValidAfterChange(db, holdingId, (txs) =>
     txs.map((t) =>
-      t.id === input.transactionId ? { ...t, quantity: input.quantity, unitPrice: input.unitPrice, fees: input.fees, date: input.date } : t,
+      t.id === input.transactionId
+        ? {
+            ...t,
+            quantity: input.quantity,
+            unitPrice: input.unitPrice,
+            fees: input.fees,
+            date: input.date,
+          }
+        : t,
     ),
   );
   await db.query(
     `update public.portfolio_transactions set quantity = $2, unit_price = $3, fees = $4, transaction_date = $5, notes = $6
       where id = $1`,
-    [input.transactionId, input.quantity, input.unitPrice, input.fees, input.date, input.notes ?? null],
+    [
+      input.transactionId,
+      input.quantity,
+      input.unitPrice,
+      input.fees,
+      input.date,
+      input.notes ?? null,
+    ],
   );
 }
 
@@ -288,16 +341,31 @@ export async function deleteHolding(db: Db, holdingId: string): Promise<void> {
   if (res.rowCount === 0) throw new ValidationError("Holding not found");
 }
 
-export async function updateHoldingNotes(db: Db, holdingId: string, notes: string | null): Promise<void> {
+export async function updateHoldingNotes(
+  db: Db,
+  holdingId: string,
+  notes: string | null,
+): Promise<void> {
   if (notes && notes.length > 2000) throw new ValidationError("Notes are too long");
-  const res = await db.query("update public.holdings set notes = $2 where id = $1", [holdingId, notes]);
+  const res = await db.query("update public.holdings set notes = $2 where id = $1", [
+    holdingId,
+    notes,
+  ]);
   if (res.rowCount === 0) throw new ValidationError("Holding not found");
 }
 
 async function insertTx(
   db: Db,
   userId: string,
-  t: { holdingId: string; type: "BUY" | "SELL"; quantity: number; unitPrice: number; fees: number; date: string; notes?: string },
+  t: {
+    holdingId: string;
+    type: "BUY" | "SELL";
+    quantity: number;
+    unitPrice: number;
+    fees: number;
+    date: string;
+    notes?: string;
+  },
 ) {
   await db.query(
     `insert into public.portfolio_transactions
@@ -347,7 +415,12 @@ export async function writePortfolioSnapshots(
   );
   let written = 0;
   for (const { id } of portfolios.rows) {
-    const positions = await loadPositions(db, { portfolioIds: [id], mode: opts.mode, engine: opts.engine, now });
+    const positions = await loadPositions(db, {
+      portfolioIds: [id],
+      mode: opts.mode,
+      engine: opts.engine,
+      now,
+    });
     const t = totalsFor(positions);
     const last = await db.query<{ market_value: string; cost_basis: string; captured_at: Date }>(
       `select market_value, cost_basis, captured_at from public.portfolio_value_snapshots
@@ -356,14 +429,25 @@ export async function writePortfolioSnapshots(
     );
     const prev = last.rows[0];
     const unchanged =
-      prev && Number(prev.market_value) === t.marketValue && Number(prev.cost_basis) === t.costBasis;
+      prev &&
+      Number(prev.market_value) === t.marketValue &&
+      Number(prev.cost_basis) === t.costBasis;
     // Keep one point per hour even when flat, so the chart reflects that time passed.
     if (unchanged && now.getTime() - prev.captured_at.getTime() < 3600_000) continue;
     await db.query(
       `insert into public.portfolio_value_snapshots
         (portfolio_id, captured_at, market_value, cost_basis, unrealized_pl, realized_pl, priced_positions, unpriced_positions)
        values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [id, now, t.marketValue, t.costBasis, t.unrealizedPl, t.realizedPl, t.pricedPositions, t.unpricedPositions],
+      [
+        id,
+        now,
+        t.marketValue,
+        t.costBasis,
+        t.unrealizedPl,
+        t.realizedPl,
+        t.pricedPositions,
+        t.unpricedPositions,
+      ],
     );
     written++;
   }
@@ -373,8 +457,16 @@ export async function writePortfolioSnapshots(
 export async function portfolioSnapshots(
   db: Db,
   portfolioId: string,
-): Promise<{ t: number; marketValue: number; costBasis: number; unrealizedPl: number; unpriced: number }[]> {
-  const res = await db.query<{ captured_at: Date; market_value: string; cost_basis: string; unrealized_pl: string; unpriced_positions: number }>(
+): Promise<
+  { t: number; marketValue: number; costBasis: number; unrealizedPl: number; unpriced: number }[]
+> {
+  const res = await db.query<{
+    captured_at: Date;
+    market_value: string;
+    cost_basis: string;
+    unrealized_pl: string;
+    unpriced_positions: number;
+  }>(
     `select captured_at, market_value, cost_basis, unrealized_pl, unpriced_positions
        from public.portfolio_value_snapshots where portfolio_id = $1 order by captured_at asc`,
     [portfolioId],

@@ -13,6 +13,7 @@ export interface LegoSet {
   thumbnailUrl: string | null;
   isObsolete: boolean | null;
   catalogFetchedAt: Date;
+  tracked: boolean;
 }
 
 interface SetRow {
@@ -27,10 +28,11 @@ interface SetRow {
   thumbnail_url: string | null;
   is_obsolete: boolean | null;
   catalog_fetched_at: Date;
+  tracked: boolean;
 }
 
 export const SET_COLS = `id, bricklink_item_type, bricklink_item_number, name, theme, category_id, year_released,
-  image_url, thumbnail_url, is_obsolete, catalog_fetched_at`;
+  image_url, thumbnail_url, is_obsolete, catalog_fetched_at, tracked`;
 
 export function mapSet(r: SetRow): LegoSet {
   return {
@@ -45,6 +47,7 @@ export function mapSet(r: SetRow): LegoSet {
     thumbnailUrl: r.thumbnail_url,
     isObsolete: r.is_obsolete,
     catalogFetchedAt: r.catalog_fetched_at,
+    tracked: r.tracked,
   };
 }
 
@@ -120,7 +123,9 @@ export async function findSet(db: Db, type: ItemType, no: string): Promise<LegoS
 }
 
 export async function getSetById(db: Db, id: string): Promise<LegoSet | null> {
-  const res = await db.query<SetRow>(`select ${SET_COLS} from public.lego_sets where id = $1`, [id]);
+  const res = await db.query<SetRow>(`select ${SET_COLS} from public.lego_sets where id = $1`, [
+    id,
+  ]);
   return res.rows[0] ? mapSet(res.rows[0]) : null;
 }
 

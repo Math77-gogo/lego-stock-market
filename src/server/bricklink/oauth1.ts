@@ -2,7 +2,10 @@ import { createHmac, randomBytes } from "node:crypto";
 
 /** RFC 3986 percent-encoding as required by OAuth 1.0a (RFC 5849 §3.6). */
 export function percentEncode(value: string): string {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }
 
 export interface OAuthCredentials {
@@ -21,7 +24,11 @@ export interface SignInput {
   timestamp?: number;
 }
 
-export function buildSignatureBaseString(method: string, url: string, params: [string, string][]): string {
+export function buildSignatureBaseString(
+  method: string,
+  url: string,
+  params: [string, string][],
+): string {
   const u = new URL(url);
   const baseUrl = `${u.protocol}//${u.host}${u.pathname}`;
   const normalized = params

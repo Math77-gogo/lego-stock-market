@@ -24,7 +24,16 @@ const obs = (o: Partial<PriceObservation> = {}): PriceObservation => ({
   currencyCode: "CAD",
   ...o,
 });
-const ref = (price: number | null): ReferencePrice => ({ price, status: price === null ? "no_data" : "ok", observedAt: now, ageHours: 0, isStale: false, unitsSold: 10, currencyCode: "CAD", warnings: [] });
+const ref = (price: number | null): ReferencePrice => ({
+  price,
+  status: price === null ? "no_data" : "ok",
+  observedAt: now,
+  ageHours: 0,
+  isStale: false,
+  unitsSold: 10,
+  currencyCode: "CAD",
+  warnings: [],
+});
 
 describe("referencePrice", () => {
   it("uses the quantity-weighted average sold price", () => {
@@ -61,7 +70,10 @@ describe("referencePrice", () => {
 describe("historical changes", () => {
   const H = 3600_000;
   it("does not invent a baseline that was never observed", () => {
-    const series = [{ t: now.getTime() - 3 * 24 * H, v: 100 }, { t: now.getTime(), v: 110 }];
+    const series = [
+      { t: now.getTime() - 3 * 24 * H, v: 100 },
+      { t: now.getTime(), v: 110 },
+    ];
     expect(changeOverPeriod(series, 30 * 24 * H)).toBeNull(); // 3 days of data, 1 month asked
     expect(changeOverPeriod([{ t: now.getTime(), v: 110 }], 24 * H)).toBeNull();
   });
@@ -77,7 +89,12 @@ describe("historical changes", () => {
     expect(c.pct).toBeCloseTo(10);
   });
   it("builds series only from valid CAD sold observations", () => {
-    const s = soldSeries([obs(), obs({ guideType: "stock", qtyAvgPrice: 999 }), obs({ currencyCode: "USD" }), obs({ unitQuantity: 0 })]);
+    const s = soldSeries([
+      obs(),
+      obs({ guideType: "stock", qtyAvgPrice: 999 }),
+      obs({ currencyCode: "USD" }),
+      obs({ unitQuantity: 0 }),
+    ]);
     expect(s).toHaveLength(1);
   });
 });
@@ -85,9 +102,33 @@ describe("historical changes", () => {
 describe("lots and P&L (FIFO)", () => {
   it("tracks multiple lots and realized profit", () => {
     const r = computeLots([
-      { id: "b1", type: "BUY", quantity: 2, unitPrice: 400, fees: 10, date: "2026-01-01", createdAt: 1 },
-      { id: "b2", type: "BUY", quantity: 1, unitPrice: 500, fees: 0, date: "2026-02-01", createdAt: 2 },
-      { id: "s1", type: "SELL", quantity: 2, unitPrice: 600, fees: 20, date: "2026-03-01", createdAt: 3 },
+      {
+        id: "b1",
+        type: "BUY",
+        quantity: 2,
+        unitPrice: 400,
+        fees: 10,
+        date: "2026-01-01",
+        createdAt: 1,
+      },
+      {
+        id: "b2",
+        type: "BUY",
+        quantity: 1,
+        unitPrice: 500,
+        fees: 0,
+        date: "2026-02-01",
+        createdAt: 2,
+      },
+      {
+        id: "s1",
+        type: "SELL",
+        quantity: 2,
+        unitPrice: 600,
+        fees: 20,
+        date: "2026-03-01",
+        createdAt: 3,
+      },
     ]);
     expect(r.quantity).toBe(1);
     expect(r.costBasisCents).toBe(50000); // remaining unit is the 500 lot
@@ -97,8 +138,24 @@ describe("lots and P&L (FIFO)", () => {
   });
   it("detects overselling", () => {
     const r = computeLots([
-      { id: "b1", type: "BUY", quantity: 1, unitPrice: 10, fees: 0, date: "2026-01-02", createdAt: 1 },
-      { id: "s1", type: "SELL", quantity: 1, unitPrice: 10, fees: 0, date: "2026-01-01", createdAt: 2 },
+      {
+        id: "b1",
+        type: "BUY",
+        quantity: 1,
+        unitPrice: 10,
+        fees: 0,
+        date: "2026-01-02",
+        createdAt: 1,
+      },
+      {
+        id: "s1",
+        type: "SELL",
+        quantity: 1,
+        unitPrice: 10,
+        fees: 0,
+        date: "2026-01-01",
+        createdAt: 2,
+      },
     ]);
     expect(r.errors).toHaveLength(1);
   });
@@ -107,8 +164,26 @@ describe("lots and P&L (FIFO)", () => {
 describe("portfolio valuation", () => {
   it("computes the spec example: 2 × 450 + 1 × 300 = 1,200 CAD", () => {
     const t = portfolioTotals([
-      { key: "a", setId: "A", quantity: 2, costBasisCents: 80000, realizedPlCents: 0, soldCostBasisCents: 0, reference: ref(450), previousPrice: 440 },
-      { key: "b", setId: "B", quantity: 1, costBasisCents: 25000, realizedPlCents: 0, soldCostBasisCents: 0, reference: ref(300), previousPrice: null },
+      {
+        key: "a",
+        setId: "A",
+        quantity: 2,
+        costBasisCents: 80000,
+        realizedPlCents: 0,
+        soldCostBasisCents: 0,
+        reference: ref(450),
+        previousPrice: 440,
+      },
+      {
+        key: "b",
+        setId: "B",
+        quantity: 1,
+        costBasisCents: 25000,
+        realizedPlCents: 0,
+        soldCostBasisCents: 0,
+        reference: ref(300),
+        previousPrice: null,
+      },
     ]);
     expect(t.marketValue).toBe(1200);
     expect(t.costBasis).toBe(1050);
@@ -121,8 +196,26 @@ describe("portfolio valuation", () => {
   });
   it("keeps new and used as separate positions with separate prices", () => {
     const t = portfolioTotals([
-      { key: "n", setId: "75192", quantity: 2, costBasisCents: 200000, realizedPlCents: 0, soldCostBasisCents: 0, reference: ref(1123.46), previousPrice: null },
-      { key: "u", setId: "75192", quantity: 1, costBasisCents: 70000, realizedPlCents: 0, soldCostBasisCents: 0, reference: ref(850.1), previousPrice: null },
+      {
+        key: "n",
+        setId: "75192",
+        quantity: 2,
+        costBasisCents: 200000,
+        realizedPlCents: 0,
+        soldCostBasisCents: 0,
+        reference: ref(1123.46),
+        previousPrice: null,
+      },
+      {
+        key: "u",
+        setId: "75192",
+        quantity: 1,
+        costBasisCents: 70000,
+        realizedPlCents: 0,
+        soldCostBasisCents: 0,
+        reference: ref(850.1),
+        previousPrice: null,
+      },
     ]);
     expect(t.marketValue).toBeCloseTo(2 * 1123.46 + 850.1);
     expect(t.distinctSets).toBe(1);
@@ -130,7 +223,16 @@ describe("portfolio valuation", () => {
   });
   it("excludes unpriced positions from market value and flags the portfolio incomplete", () => {
     const t = portfolioTotals([
-      { key: "a", setId: "A", quantity: 1, costBasisCents: 10000, realizedPlCents: 0, soldCostBasisCents: 0, reference: ref(null), previousPrice: null },
+      {
+        key: "a",
+        setId: "A",
+        quantity: 1,
+        costBasisCents: 10000,
+        realizedPlCents: 0,
+        soldCostBasisCents: 0,
+        reference: ref(null),
+        previousPrice: null,
+      },
     ]);
     expect(t.marketValue).toBe(0);
     expect(t.complete).toBe(false);
@@ -138,7 +240,15 @@ describe("portfolio valuation", () => {
     expect(t.dayChange).toBeNull();
   });
   it("does not compute a percentage from a zero cost basis", () => {
-    const v = valuePosition({ key: "x", quantity: 1, costBasisCents: 0, realizedPlCents: 0, soldCostBasisCents: 0, reference: ref(100), previousPrice: null });
+    const v = valuePosition({
+      key: "x",
+      quantity: 1,
+      costBasisCents: 0,
+      realizedPlCents: 0,
+      soldCostBasisCents: 0,
+      reference: ref(100),
+      previousPrice: null,
+    });
     expect(v.marketValue).toBe(100);
     expect(v.unrealizedPct).toBeNull();
   });

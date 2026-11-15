@@ -36,24 +36,53 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
   it("syncs new and used prices separately, values portfolios and logs the run", async () => {
     const set = await engine.lookupCatalogItem("SET", "75192-1");
     const user = await createUser(pool, "u@example.test");
-    await withUser(user, async (db) => {
-      await addPurchase(db, user, { legoSetId: set.id, condition: "N", quantity: 2, unitPrice: 900, fees: 0, date: "2026-01-01" });
-      await addPurchase(db, user, { legoSetId: set.id, condition: "U", quantity: 1, unitPrice: 700, fees: 0, date: "2026-01-01" });
-    }, pool);
+    await withUser(
+      user,
+      async (db) => {
+        await addPurchase(db, user, {
+          legoSetId: set.id,
+          condition: "N",
+          quantity: 2,
+          unitPrice: 900,
+          fees: 0,
+          date: "2026-01-01",
+        });
+        await addPurchase(db, user, {
+          legoSetId: set.id,
+          condition: "U",
+          quantity: 1,
+          unitPrice: 700,
+          fees: 0,
+          date: "2026-01-01",
+        });
+      },
+      pool,
+    );
 
     const result = await engine.runCycle("test");
     expect(result.status).toBe("success");
     expect(result.updated).toBe(4);
 
-    const obs = await pool.query("select condition, guide_type, qty_avg_price, currency_code, source from public.bricklink_price_observations order by condition, guide_type");
-    expect(obs.rows.map((r) => `${r.condition}:${r.guide_type}:${Number(r.qty_avg_price)}:${r.currency_code}:${r.source}`)).toEqual([
+    const obs = await pool.query(
+      "select condition, guide_type, qty_avg_price, currency_code, source from public.bricklink_price_observations order by condition, guide_type",
+    );
+    expect(
+      obs.rows.map(
+        (r) =>
+          `${r.condition}:${r.guide_type}:${Number(r.qty_avg_price)}:${r.currency_code}:${r.source}`,
+      ),
+    ).toEqual([
       "N:sold:1123.4567:CAD:bricklink_api_v1",
       "N:stock:1299:CAD:bricklink_api_v1",
       "U:sold:850.1:CAD:bricklink_api_v1",
       "U:stock:999:CAD:bricklink_api_v1",
     ]);
 
-    const positions = await withUser(user, (db) => loadPositions(db, { mode: "test", engine: engineOpts }), pool);
+    const positions = await withUser(
+      user,
+      (db) => loadPositions(db, { mode: "test", engine: engineOpts }),
+      pool,
+    );
     const n = positions.find((p) => p.condition === "N")!;
     const u = positions.find((p) => p.condition === "U")!;
     expect(n.reference.price).toBe(1123.46); // sold price, never the asking price
@@ -63,11 +92,15 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
     expect(totals.costBasis).toBe(2500);
     expect(totals.dayChange).toBeNull(); // no 24h history yet: nothing invented
 
-    const run = await pool.query("select status, requests_used, sets_updated from public.sync_runs");
+    const run = await pool.query(
+      "select status, requests_used, sets_updated from public.sync_runs",
+    );
     expect(run.rows[0]).toMatchObject({ status: "success", requests_used: 4, sets_updated: 4 });
     const snaps = await pool.query("select market_value from public.portfolio_value_snapshots");
     expect(Number(snaps.rows[0].market_value)).toBeCloseTo(3097.02, 2);
-    const ws = await pool.query("select connection_status, last_success_at from public.worker_status");
+    const ws = await pool.query(
+      "select connection_status, last_success_at from public.worker_status",
+    );
     expect(ws.rows[0].connection_status).toBe("connected");
 
     // Nothing is due again until the interval passes: no duplicate requests.
@@ -78,9 +111,25 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
   it("marks sets with zero sales as insufficient data", async () => {
     const set = await engine.lookupCatalogItem("SET", "10497");
     const user = await createUser(pool, "z@example.test");
-    await withUser(user, (db) => addPurchase(db, user, { legoSetId: set.id, condition: "U", quantity: 1, unitPrice: 100, fees: 0, date: "2026-01-01" }), pool);
+    await withUser(
+      user,
+      (db) =>
+        addPurchase(db, user, {
+          legoSetId: set.id,
+          condition: "U",
+          quantity: 1,
+          unitPrice: 100,
+          fees: 0,
+          date: "2026-01-01",
+        }),
+      pool,
+    );
     await engine.runCycle("test");
-    const [p] = await withUser(user, (db) => loadPositions(db, { mode: "test", engine: engineOpts }), pool);
+    const [p] = await withUser(
+      user,
+      (db) => loadPositions(db, { mode: "test", engine: engineOpts }),
+      pool,
+    );
     expect(p!.reference.price).toBeNull();
     expect(p!.reference.status).toBe("no_sales");
     expect(p!.reference.warnings[0]).toMatch(/Insufficient BrickLink data/);
@@ -90,9 +139,25 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
     state.prices["75192-1:N:sold"]!.currency = "USD";
     const set = await engine.lookupCatalogItem("SET", "75192-1");
     const user = await createUser(pool, "c@example.test");
-    await withUser(user, (db) => addPurchase(db, user, { legoSetId: set.id, condition: "N", quantity: 1, unitPrice: 100, fees: 0, date: "2026-01-01" }), pool);
+    await withUser(
+      user,
+      (db) =>
+        addPurchase(db, user, {
+          legoSetId: set.id,
+          condition: "N",
+          quantity: 1,
+          unitPrice: 100,
+          fees: 0,
+          date: "2026-01-01",
+        }),
+      pool,
+    );
     await engine.runCycle("test");
-    const [p] = await withUser(user, (db) => loadPositions(db, { mode: "test", engine: engineOpts }), pool);
+    const [p] = await withUser(
+      user,
+      (db) => loadPositions(db, { mode: "test", engine: engineOpts }),
+      pool,
+    );
     expect(p!.reference.status).toBe("currency_mismatch");
     expect(p!.marketValue).toBeNull();
   });
@@ -105,9 +170,13 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
     const r = await engine.runCycle("test");
     expect(r.status).toBe("failed");
     expect(r.failed).toBe(4);
-    const t = await pool.query("select consecutive_failures, next_due_at > now() + interval '4 minutes' as backed_off from public.sync_targets");
+    const t = await pool.query(
+      "select consecutive_failures, next_due_at > now() + interval '4 minutes' as backed_off from public.sync_targets",
+    );
     expect(t.rows.every((x) => x.consecutive_failures === 1 && x.backed_off)).toBe(true);
-    const obs = await pool.query("select count(*)::int as n from public.bricklink_price_observations");
+    const obs = await pool.query(
+      "select count(*)::int as n from public.bricklink_price_observations",
+    );
     expect(obs.rows[0].n).toBe(4); // earlier observations are untouched
     const ws = await pool.query("select connection_status from public.worker_status");
     expect(ws.rows[0].connection_status).toBe("unavailable");
@@ -118,7 +187,9 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
     state.failNext.push({ status: 429 });
     const r = await engine.runCycle("test");
     expect(r.status).toBe("failed");
-    const ws = await pool.query("select connection_status, paused_until > now() as paused from public.worker_status");
+    const ws = await pool.query(
+      "select connection_status, paused_until > now() as paused from public.worker_status",
+    );
     expect(ws.rows[0]).toMatchObject({ connection_status: "rate_limited", paused: true });
     expect((await engine.runCycle("test")).note).toBe("paused");
 
@@ -130,7 +201,12 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
   });
 
   it("stops at the daily request budget", async () => {
-    const small = new SyncEngine(pool, testConfig({ BRICKLINK_DAILY_REQUEST_LIMIT: "3", BRICKLINK_BUDGET_RESERVE_RATIO: "0" }), silentLogger, mockTransport(state));
+    const small = new SyncEngine(
+      pool,
+      testConfig({ BRICKLINK_DAILY_REQUEST_LIMIT: "3", BRICKLINK_BUDGET_RESERVE_RATIO: "0" }),
+      silentLogger,
+      mockTransport(state),
+    );
     await small.lookupCatalogItem("SET", "75192-1"); // 2 requests (categories + item)
     const r = await small.runCycle("test");
     expect(r.requestsUsed).toBe(1);
@@ -139,7 +215,12 @@ describe("cloud sync worker (runs with no frontend at all)", () => {
   });
 
   it("does nothing when BrickLink credentials are missing", async () => {
-    const unconfigured = new SyncEngine(pool, testConfig({ BRICKLINK_CONSUMER_KEY: "" }), silentLogger, mockTransport(state));
+    const unconfigured = new SyncEngine(
+      pool,
+      testConfig({ BRICKLINK_CONSUMER_KEY: "" }),
+      silentLogger,
+      mockTransport(state),
+    );
     expect((await unconfigured.runCycle("test")).note).toBe("not_configured");
     expect(state.calls).toHaveLength(0);
   });

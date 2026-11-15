@@ -21,7 +21,14 @@ export interface PriceObservation {
   currencyCode: string;
 }
 
-export type PriceStatus = "ok" | "low_volume" | "stale" | "no_sales" | "no_data" | "currency_mismatch" | "wrong_guide";
+export type PriceStatus =
+  | "ok"
+  | "low_volume"
+  | "stale"
+  | "no_sales"
+  | "no_data"
+  | "currency_mismatch"
+  | "wrong_guide";
 
 export interface ReferencePrice {
   /** CAD price per unit, or null when it cannot be determined honestly. */
@@ -41,7 +48,11 @@ export interface EngineOptions {
   minUnitsForConfidence: number;
 }
 
-export const DEFAULT_ENGINE_OPTIONS: EngineOptions = { currency: "CAD", staleAfterHours: 36, minUnitsForConfidence: 3 };
+export const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
+  currency: "CAD",
+  staleAfterHours: 36,
+  minUnitsForConfidence: 3,
+};
 
 export const toCents = (v: number): number => Math.round(v * 100);
 export const fromCents = (c: number): number => c / 100;
@@ -63,14 +74,23 @@ export function referencePrice(
   });
 
   if (!latestSold) return empty("no_data", "Insufficient BrickLink data");
-  if (latestSold.guideType !== "sold") return empty("wrong_guide", "Asking prices are not used for valuation", latestSold);
+  if (latestSold.guideType !== "sold")
+    return empty("wrong_guide", "Asking prices are not used for valuation", latestSold);
   if (latestSold.currencyCode !== opts.currency) {
-    return empty("currency_mismatch", `BrickLink returned ${latestSold.currencyCode}; ${opts.currency} valuation unavailable`, latestSold);
+    return empty(
+      "currency_mismatch",
+      `BrickLink returned ${latestSold.currencyCode}; ${opts.currency} valuation unavailable`,
+      latestSold,
+    );
   }
   const units = latestSold.unitQuantity ?? 0;
   const price = latestSold.qtyAvgPrice;
   if (units <= 0 || price === null || !(price > 0)) {
-    return empty("no_sales", "Insufficient BrickLink data: no completed sales in BrickLink's 6-month window", latestSold);
+    return empty(
+      "no_sales",
+      "Insufficient BrickLink data: no completed sales in BrickLink's 6-month window",
+      latestSold,
+    );
   }
 
   const ageHours = hoursBetween(latestSold.observedAt, now);
@@ -79,7 +99,9 @@ export function referencePrice(
   let status: PriceStatus = "ok";
   if (units < opts.minUnitsForConfidence) {
     status = "low_volume";
-    warnings.push(`Low BrickLink sales volume (${units} unit${units === 1 ? "" : "s"} sold in 6 months)`);
+    warnings.push(
+      `Low BrickLink sales volume (${units} unit${units === 1 ? "" : "s"} sold in 6 months)`,
+    );
   }
   if (isStale) {
     status = "stale";
@@ -142,7 +164,12 @@ export function changeAcross(series: SeriesPoint[]): Change | null {
   const from = series[0]!;
   const to = series[series.length - 1]!;
   if (!(from.v > 0)) return null;
-  return { abs: fromCents(toCents(to.v) - toCents(from.v)), pct: ((to.v - from.v) / from.v) * 100, from, to };
+  return {
+    abs: fromCents(toCents(to.v) - toCents(from.v)),
+    pct: ((to.v - from.v) / from.v) * 100,
+    from,
+    to,
+  };
 }
 
 /** Converts sold observations into a CAD price series, skipping anything unusable. */
@@ -193,7 +220,9 @@ export interface LotResult {
 }
 
 export function sortTransactions<T extends { date: string; createdAt: number }>(txs: T[]): T[] {
-  return [...txs].sort((a, b) => (a.date === b.date ? a.createdAt - b.createdAt : a.date < b.date ? -1 : 1));
+  return [...txs].sort((a, b) =>
+    a.date === b.date ? a.createdAt - b.createdAt : a.date < b.date ? -1 : 1,
+  );
 }
 
 export function computeLots(transactions: TransactionInput[]): LotResult {
