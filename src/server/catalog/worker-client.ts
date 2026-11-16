@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { getConfig } from "@/lib/config";
 import type { ItemType } from "../bricklink/types";
 import type { LegoSet } from "./service";
@@ -69,4 +70,10 @@ export async function requestSyncViaWorker(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** First 8 hex chars of SHA-256(secret): lets people compare two secrets without revealing them. */
+export function secretFingerprint(secret: string | undefined): string {
+  if (!secret) return "none";
+  return createHash("sha256").update(secret).digest("hex").slice(0, 8);
 }

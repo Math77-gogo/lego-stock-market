@@ -16,7 +16,12 @@ import {
   updateTransactionSchema,
   ValidationError,
 } from "@/server/portfolio/service";
-import { lookupViaWorker, requestSyncViaWorker } from "@/server/catalog/worker-client";
+import {
+  lookupViaWorker,
+  requestSyncViaWorker,
+  secretFingerprint,
+} from "@/server/catalog/worker-client";
+import { getConfig } from "@/lib/config";
 import { ITEM_TYPES } from "@/server/bricklink/types";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -169,8 +174,7 @@ export async function lookupAction(_: ActionState, fd: FormData): Promise<Action
       worker_unavailable:
         "The sync worker is not reachable right now, so BrickLink can't be queried. Try again in a minute.",
       bricklink_error: `BrickLink did not answer this lookup (${result.detail ?? "unknown error"}). Check the sync status in Settings.`,
-      secret_mismatch:
-        "The app and the sync worker don't share the same WORKER_API_SECRET. Copy it again from the server into Vercel.",
+      secret_mismatch: `The app and the sync worker don't share the same WORKER_API_SECRET (app fingerprint: ${secretFingerprint(getConfig().WORKER_API_SECRET)}).`,
       not_configured:
         "The sync worker isn't configured yet (WORKER_INTERNAL_URL / WORKER_API_SECRET).",
     };
