@@ -23,7 +23,7 @@ const schema = z.object({
   BRICKLINK_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   SYNC_MIN_INTERVAL_MINUTES: z.coerce.number().positive().default(30),
   SYNC_MAX_INTERVAL_HOURS: z.coerce.number().positive().default(24),
-  SYNC_STOCK_GUIDE_ENABLED: bool.default("true"),
+  SYNC_STOCK_GUIDE_ENABLED: bool.default(true),
   SYNC_STALE_AFTER_HOURS: z.coerce.number().positive().default(36),
   SYNC_TICK_SECONDS: z.coerce.number().int().positive().default(60),
   WORKER_PORT: z.coerce.number().int().positive().default(8080),

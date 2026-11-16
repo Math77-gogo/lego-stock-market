@@ -113,7 +113,7 @@ export class BrickLinkClient {
   private request<T>(
     path: string,
     params: Record<string, string>,
-    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+    schema: z.ZodType<T>,
   ): Promise<T> {
     const run = this.queue.then(() => this.send(path, params, schema));
     this.queue = run.catch(() => undefined);
@@ -123,7 +123,7 @@ export class BrickLinkClient {
   private async send<T>(
     path: string,
     params: Record<string, string>,
-    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+    schema: z.ZodType<T>,
   ): Promise<T> {
     const credentials = this.opts.credentials;
     if (!credentials)
