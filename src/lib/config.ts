@@ -33,8 +33,14 @@ const schema = z.object({
   ),
   // Trimmed: copy-pasting from a terminal often adds invisible spaces or line breaks.
   WORKER_API_SECRET: z.preprocess(
-    (v) => (typeof v === "string" ? v.replace(/\s+/g, "") || undefined : v),
-    z.string().min(32).optional(),
+    // A too-short value (e.g. a fingerprint pasted by mistake) disables lookups instead of
+    // crashing every page; the lookup form then explains the worker isn't configured.
+    (v) => {
+      if (typeof v !== "string") return v;
+      const s = v.replace(/\s+/g, "");
+      return s.length >= 32 ? s : undefined;
+    },
+    z.string().optional(),
   ),
   LOCAL_DEV_AUTH_USER_ID: z.string().uuid().optional(),
 });
