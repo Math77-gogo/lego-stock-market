@@ -76,7 +76,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && req.url === "/health") {
       return send(res, 200, { ok: true, running, mode: cfg.APP_MODE });
     }
-    if (!authorized(req)) return send(res, 401, { error: "unauthorized" });
+    if (!authorized(req)) {
+      log.warn("Rejected worker API call with a wrong or missing secret", { path: req.url });
+      return send(res, 401, { error: "unauthorized" });
+    }
 
     if (req.method === "POST" && req.url === "/internal/catalog/lookup") {
       const parsed = lookupSchema.safeParse(await readJson(req));
@@ -86,8 +89,16 @@ const server = http.createServer(async (req, res) => {
         void tick("new_set"); // fetch its first price observations right away
         return send(res, 200, { set });
       } catch (err) {
-        if (err instanceof BrickLinkError)
+        if (err instanceof BrickLinkError) {
+          log.warn("Catalog lookup failed", {
+            item: `${parsed.data.type} ${parsed.data.no}`,
+            kind: err.kind,
+            http: err.httpStatus,
+            code: err.bricklinkCode,
+            message: err.message.slice(0, 300),
+          });
           return send(res, err.kind === "not_found" ? 404 : 502, { error: err.kind });
+        }
         throw err;
       }
     }

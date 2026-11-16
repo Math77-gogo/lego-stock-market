@@ -168,10 +168,12 @@ export async function lookupAction(_: ActionState, fd: FormData): Promise<Action
       not_found: `BrickLink has no ${parsed.data.type.toLowerCase()} numbered "${parsed.data.no}". Set numbers look like 75192-1.`,
       worker_unavailable:
         "The sync worker is not reachable right now, so BrickLink can't be queried. Try again in a minute.",
-      bricklink_error: "BrickLink did not answer this lookup. Check the sync status in Settings.",
+      bricklink_error: `BrickLink did not answer this lookup (${result.detail ?? "unknown error"}). Check the sync status in Settings.`,
+      secret_mismatch:
+        "The app and the sync worker don't share the same WORKER_API_SECRET. Copy it again from the server into Vercel.",
       not_configured:
         "The sync worker isn't configured yet (WORKER_INTERNAL_URL / WORKER_API_SECRET).",
-    } as const;
+    };
     return { ok: false, message: messages[result.reason] };
   }
   revalidatePath("/market");

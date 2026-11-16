@@ -7,7 +7,13 @@ export type LookupResult =
   | { ok: true; set: LegoSet }
   | {
       ok: false;
-      reason: "not_found" | "worker_unavailable" | "bricklink_error" | "not_configured";
+      reason:
+        | "not_found"
+        | "worker_unavailable"
+        | "bricklink_error"
+        | "not_configured"
+        | "secret_mismatch";
+      detail?: string;
     };
 
 /**
@@ -27,13 +33,24 @@ export async function lookupViaWorker(type: ItemType, no: string): Promise<Looku
       },
       body: JSON.stringify({ type, no }),
       cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(25_000),
     });
     if (res.status === 404) return { ok: false, reason: "not_found" };
-    if (!res.ok) return { ok: false, reason: "bricklink_error" };
+    if (res.status === 401) return { ok: false, reason: "secret_mismatch" };
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      return { ok: false, reason: "bricklink_error", detail: body.error ?? `HTTP ${res.status}` };
+    }
     const body = (await res.json()) as { set: LegoSet };
     return { ok: true, set: body.set };
-  } catch {
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        msg: "Worker lookup failed",
+        error: (err as Error).message,
+      }),
+    );
     return { ok: false, reason: "worker_unavailable" };
   }
 }
