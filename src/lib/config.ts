@@ -27,8 +27,15 @@ const schema = z.object({
   SYNC_STALE_AFTER_HOURS: z.coerce.number().positive().default(36),
   SYNC_TICK_SECONDS: z.coerce.number().int().positive().default(60),
   WORKER_PORT: z.coerce.number().int().positive().default(8080),
-  WORKER_INTERNAL_URL: z.string().url().optional(),
-  WORKER_API_SECRET: z.string().min(32).optional(),
+  WORKER_INTERNAL_URL: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().replace(/\/+$/, "") || undefined : v),
+    z.string().url().optional(),
+  ),
+  // Trimmed: copy-pasting from a terminal often adds invisible spaces or line breaks.
+  WORKER_API_SECRET: z.preprocess(
+    (v) => (typeof v === "string" ? v.replace(/\s+/g, "") || undefined : v),
+    z.string().min(32).optional(),
+  ),
   LOCAL_DEV_AUTH_USER_ID: z.string().uuid().optional(),
 });
 
