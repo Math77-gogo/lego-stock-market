@@ -43,6 +43,8 @@ fi
 
 IP=$(curl -fsS https://api.ipify.org)
 export WORKER_HOST="${IP//./-}.sslip.io"
+# Saved so later "docker compose" commands (logs, restart) see the same host.
+echo "WORKER_HOST=$WORKER_HOST" > "$DIR/deploy/.env"
 
 echo "==> Building and starting (first time takes a few minutes)"
 cd "$DIR/deploy"
