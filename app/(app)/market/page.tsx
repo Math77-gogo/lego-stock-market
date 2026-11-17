@@ -34,7 +34,7 @@ export default async function MarketPage({
     <div className="max-w-5xl">
       <PageHeader
         title="Market"
-        subtitle="Every price is BrickLink's quantity-weighted average of completed sales over the last 6 months, in CAD."
+        subtitle="Every price is BrickLink's quantity-weighted average of sales over the last 6 months, in CAD, for complete sets only (like “Exclude Incomplete” on BrickLink)."
         action={
           <Link href="/leaderboard" className="btn-secondary">
             Rankings

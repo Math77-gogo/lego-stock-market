@@ -151,7 +151,7 @@ export default async function AssetPage({
           headlineValue={m.reference.price}
           headlineSuffix="CAD"
           points={m.series}
-          footnote={`Each point is one BrickLink Price Guide observation collected by this app: the quantity-weighted average of completed ${condition === "N" ? "new" : "used"} sales over BrickLink's trailing 6-month window. ${m.observationCount} observation${m.observationCount === 1 ? "" : "s"} since ${m.firstObservedAt ? new Date(m.firstObservedAt).toISOString().slice(0, 10) : "—"}.`}
+          footnote={`Each point is one BrickLink Price Guide observation collected by this app: the quantity-weighted average of ${condition === "N" ? "new" : "used"} sales over BrickLink's trailing 6-month window. The official API excludes incomplete sets, so this matches BrickLink's Price Guide with “Exclude Incomplete” checked. ${m.observationCount} observation${m.observationCount === 1 ? "" : "s"} since ${m.firstObservedAt ? new Date(m.firstObservedAt).toISOString().slice(0, 10) : "—"}.`}
         />
         <div className="mt-5 grid grid-cols-3 gap-4 border-t border-line pt-4">
           {(["1D", "1W", "1M"] as const).map((k) => (
@@ -177,7 +177,7 @@ export default async function AssetPage({
       </div>
 
       <Section
-        title="BrickLink sales statistics (last 6 months)"
+        title="BrickLink sales statistics (last 6 months, complete sets)"
         action={
           <span className="text-xs text-muted">
             Last sync <LocalTime iso={lastSyncAt} mode="relative" />
