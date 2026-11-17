@@ -56,12 +56,20 @@ for i in $(seq 1 30); do
   sleep 5
 done
 
+echo "==> Nightly database backups (03:17 UTC, last 14 days kept in /var/backups/lsm)"
+chmod +x "$DIR/deploy/backup.sh"
+echo "17 3 * * * root $DIR/deploy/backup.sh >> /var/log/lsm-backup.log 2>&1" > /etc/cron.d/lsm-backup
+chmod 644 /etc/cron.d/lsm-backup
+BACKUP_RESULT=$("$DIR/deploy/backup.sh" 2>&1 | tail -1 || true)
+echo "$BACKUP_RESULT" >> /var/log/lsm-backup.log
+
 SECRET=$(grep '^WORKER_API_SECRET=' "$ENV_FILE" | cut -d= -f2-)
 echo
 echo "================================================================"
 if [ "${OK:-}" = 1 ]; then echo " Worker is running."; else echo " Worker started; HTTPS may need another minute. Logs: docker compose -f $DIR/deploy/docker-compose.yml logs -f"; fi
 echo
 echo " Server IP (register this in BrickLink):  $IP"
+echo " First backup:                            $BACKUP_RESULT"
 echo " WORKER_INTERNAL_URL:                     https://$WORKER_HOST"
 echo " WORKER_API_SECRET (for the web app, keep private):"
 echo "   $SECRET"

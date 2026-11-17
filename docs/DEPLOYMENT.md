@@ -113,3 +113,24 @@ Imported sets are searchable by name and theme and cost no API requests until so
 The default plan is 5,000 requests per day. Each tracked set uses up to 4 targets (New/Used × sold/listings). The scheduler
 reserves 15% for lookups and spreads the rest: held sets' sold prices refresh most often (minimum 30 min), listings and
 non-held sets 3–6× less often. Rate limits or auth failures pause the worker and are shown in Settings.
+
+## 6. Backups
+
+The install script adds a nightly cron job (03:17 UTC) that runs `deploy/backup.sh`: a `pg_dump` of the
+`public` (app data, price history) and `auth` (accounts) schemas into `/var/backups/lsm` on the worker
+server, keeping 14 days. The log is `/var/log/lsm-backup.log`.
+
+Run a backup now and list them:
+
+```bash
+sudo /opt/lego-stock-market/deploy/backup.sh && ls -lh /var/backups/lsm
+```
+
+Restore the app data into a database (for example a new Supabase project after applying the migrations):
+
+```bash
+docker run --rm -i --network host -e PGURL="<target DATABASE_URL>" postgres:18-alpine sh -c 'pg_restore --data-only --schema=public --no-owner -d "$PGURL"' < /var/backups/lsm/<file>.dump
+```
+
+These copies live on the same server as the worker. For an off-server copy, download one occasionally
+(DigitalOcean Droplet snapshots or `scp`).
