@@ -9,6 +9,7 @@ import { mapSet, SET_COLS, type LegoSet } from "../catalog/service";
 import {
   changeOverPeriod,
   computeLots,
+  marketOnlySeries,
   portfolioTotals,
   referencePrice,
   soldSeries,
@@ -18,6 +19,7 @@ import {
   type PortfolioTotals,
   type PositionValuation,
   type ReferencePrice,
+  type SeriesPoint,
   type TransactionInput,
   type OpenLot,
 } from "../pricing/engine";
@@ -481,3 +483,25 @@ export async function portfolioSnapshots(
 }
 
 export type { StoredObservation };
+
+/**
+ * Market-only performance line for the current holdings (see marketOnlySeries): moves with
+ * BrickLink prices only, never with purchases, sales or what was paid.
+ */
+export async function marketSeriesFor(
+  db: Db,
+  positions: PositionView[],
+  mode: "production" | "test",
+  currency = "CAD",
+): Promise<SeriesPoint[]> {
+  const open = positions.filter((p) => p.quantity > 0 && p.reference.price !== null);
+  if (open.length === 0) return [];
+  const ids = [...new Set(open.map((p) => p.set.id))];
+  const series = await observationSeries(db, ids, "sold", null, mode);
+  const holdings = open.map((p) => ({
+    quantity: p.quantity,
+    series: soldSeries(series.get(`${p.set.id}:${p.condition}`) ?? [], currency),
+  }));
+  const endValue = open.reduce((sum, p) => sum + (p.marketValue ?? 0), 0);
+  return marketOnlySeries(holdings, endValue);
+}

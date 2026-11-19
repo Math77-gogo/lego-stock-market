@@ -3,12 +3,12 @@ import { appContext } from "@/server/app";
 import {
   getDefaultPortfolio,
   loadPositions,
-  portfolioSnapshots,
+  marketSeriesFor,
   totalsFor,
   type PositionView,
 } from "@/server/portfolio/service";
 import { syncStatus } from "@/server/market/queries";
-import { PriceChart } from "@/components/PriceChart";
+import { PortfolioPerformance } from "@/components/PortfolioPerformance";
 import { HoldingRow } from "@/components/HoldingRow";
 import { LocalTime } from "@/components/LocalTime";
 import { Delta, EmptyState, Notice, Section, SetImage, Stat } from "@/components/ui";
@@ -49,15 +49,16 @@ function Performer({
 
 export default async function Dashboard() {
   const ctx = await appContext();
-  const { positions, snapshots, status } = await ctx.db(async (db) => {
+  const { positions, series, status } = await ctx.db(async (db) => {
     const portfolio = await getDefaultPortfolio(db, ctx.user.id);
+    const positions = await loadPositions(db, {
+      portfolioIds: [portfolio.id],
+      mode: ctx.mode,
+      engine: ctx.engine,
+    });
     return {
-      positions: await loadPositions(db, {
-        portfolioIds: [portfolio.id],
-        mode: ctx.mode,
-        engine: ctx.engine,
-      }),
-      snapshots: await portfolioSnapshots(db, portfolio.id),
+      positions,
+      series: await marketSeriesFor(db, positions, ctx.mode),
       status: await syncStatus(db, getConfig().BRICKLINK_DAILY_REQUEST_LIMIT),
     };
   });
@@ -97,27 +98,7 @@ export default async function Dashboard() {
 
   return (
     <div className="max-w-3xl">
-      <div className="card p-5 sm:p-7">
-        <PriceChart
-          label={t("dashboard.total")}
-          headlineValue={totals.marketValue}
-          headlineSuffix="CAD"
-          points={snapshots.map((s) => ({ t: s.t, v: s.marketValue }))}
-          defaultRange="1M"
-          footnote="Each point is a portfolio valuation computed by the sync worker after a BrickLink update. Purchases and sales change the total, so use Today for market-driven movement."
-          emptyBody="Your portfolio history starts with the worker's first valuations after BrickLink prices are collected."
-        />
-        <div className="mt-5 flex flex-wrap items-baseline gap-x-2 border-t border-line pt-4 text-sm">
-          <span className="label">{t("dashboard.today")}</span>
-          {totals.dayChange !== null ? (
-            <span className={`font-bold tabular-nums ${toneClass(totals.dayChange)}`}>
-              {signedMoney(totals.dayChange)} ({pct(totals.dayChangePct)})
-            </span>
-          ) : (
-            <span className="text-muted">Not enough historical data for a 24 h comparison yet</span>
-          )}
-        </div>
-      </div>
+      <PortfolioPerformance totals={totals} series={series} />
 
       <div className="mt-4 space-y-2">
         {!totals.complete && (

@@ -411,3 +411,59 @@ export function formatAge(hours: number): string {
   if (hours < 48) return `${Math.round(hours)} h`;
   return `${Math.round(hours / 24)} days`;
 }
+
+// ---------------------------------------------------------------------------
+// Market-only portfolio series (like a brokerage "performance" chart)
+// ---------------------------------------------------------------------------
+
+export interface HoldingSeries {
+  quantity: number;
+  series: SeriesPoint[]; // sorted sold-price observations for this set + condition
+}
+
+/**
+ * Value of the CURRENT holdings over time, moved only by BrickLink prices.
+ * Buying or selling never creates a jump, and what was paid plays no role.
+ *
+ * Chain-linked index: between two consecutive time buckets, the return is computed only over
+ * holdings priced in both buckets, so a set whose tracking started later doesn't create a jump.
+ * The index is then scaled so the last point equals `endValue` (today's market value).
+ */
+export function marketOnlySeries(
+  holdings: HoldingSeries[],
+  endValue: number,
+  bucketMs = 3600_000,
+): SeriesPoint[] {
+  const priced = holdings.filter((h) => h.quantity > 0 && h.series.length > 0);
+  if (priced.length === 0 || !(endValue > 0)) return [];
+
+  // Last price per bucket for each holding.
+  const perHolding = priced.map((h) => {
+    const m = new Map<number, number>();
+    for (const p of h.series) m.set(Math.floor(p.t / bucketMs) * bucketMs, p.v);
+    return m;
+  });
+  const buckets = [...new Set(perHolding.flatMap((m) => [...m.keys()]))].sort((a, b) => a - b);
+  if (buckets.length === 0) return [];
+
+  const last: (number | undefined)[] = priced.map(() => undefined);
+  const index: SeriesPoint[] = [];
+  let level = 1;
+  for (const b of buckets) {
+    let prev = 0;
+    let cur = 0;
+    priced.forEach((h, i) => {
+      const before = last[i];
+      const now = perHolding[i]!.get(b) ?? before;
+      if (before !== undefined && now !== undefined) {
+        prev += h.quantity * before;
+        cur += h.quantity * now;
+      }
+      last[i] = now;
+    });
+    if (index.length > 0 && prev > 0) level *= cur / prev;
+    index.push({ t: b, v: level });
+  }
+  const scale = endValue / level;
+  return index.map((p) => ({ t: p.t, v: Math.round(p.v * scale * 100) / 100 }));
+}

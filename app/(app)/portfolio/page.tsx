@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { appContext } from "@/server/app";
-import { getDefaultPortfolio, loadPositions, totalsFor } from "@/server/portfolio/service";
+import {
+  getDefaultPortfolio,
+  loadPositions,
+  marketSeriesFor,
+  totalsFor,
+} from "@/server/portfolio/service";
+import { PortfolioPerformance } from "@/components/PortfolioPerformance";
 import { HoldingRow } from "@/components/HoldingRow";
 import { ConditionBadge, EmptyState, PageHeader, Section, SetImage, Stat } from "@/components/ui";
 import { count, money, signedMoney, toneClass } from "@/lib/format";
@@ -9,16 +15,14 @@ export const metadata = { title: "Portfolio" };
 
 export default async function PortfolioPage() {
   const ctx = await appContext();
-  const { portfolio, positions } = await ctx.db(async (db) => {
+  const { portfolio, positions, series } = await ctx.db(async (db) => {
     const portfolio = await getDefaultPortfolio(db, ctx.user.id);
-    return {
-      portfolio,
-      positions: await loadPositions(db, {
-        portfolioIds: [portfolio.id],
-        mode: ctx.mode,
-        engine: ctx.engine,
-      }),
-    };
+    const positions = await loadPositions(db, {
+      portfolioIds: [portfolio.id],
+      mode: ctx.mode,
+      engine: ctx.engine,
+    });
+    return { portfolio, positions, series: await marketSeriesFor(db, positions, ctx.mode) };
   });
   const open = positions
     .filter((p) => p.quantity > 0)
@@ -49,7 +53,8 @@ export default async function PortfolioPage() {
         />
       ) : (
         <>
-          <div className="card grid grid-cols-2 gap-6 p-5 sm:grid-cols-4">
+          <PortfolioPerformance totals={totals} series={series} />
+          <div className="card mt-4 grid grid-cols-2 gap-6 p-5 sm:grid-cols-4">
             <Stat label="Market value" value={money(totals.marketValue)} />
             <Stat label="Cost" value={money(totals.costBasis)} />
             <Stat
