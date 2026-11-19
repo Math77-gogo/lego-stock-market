@@ -150,18 +150,27 @@ export default async function AssetPage({
           label={`Current reference price · ${conditionLabel(condition)}`}
           headlineValue={m.reference.price}
           headlineSuffix="CAD"
-          points={m.series}
-          footnote={`Each point is one BrickLink Price Guide observation collected by this app: the quantity-weighted average of ${condition === "N" ? "new" : "used"} sales over BrickLink's trailing 6-month window. The official API excludes incomplete sets, so this matches BrickLink's Price Guide with “Exclude Incomplete” checked. ${m.observationCount} observation${m.observationCount === 1 ? "" : "s"} since ${m.firstObservedAt ? new Date(m.firstObservedAt).toISOString().slice(0, 10) : "—"}.`}
+          points={m.salesTrend}
+          ranges={["1W", "1M", "3M", "6M"]}
+          defaultRange="6M"
+          emptyBody={
+            m.salesCount === 0
+              ? "BrickLink reports no sales for this condition in the last 6 months."
+              : "Not enough BrickLink sales in this period to draw a chart. Try a longer range."
+          }
+          footnote={`Built from ${m.salesCount} individual BrickLink sales of the last 6 months (complete sets, like “Exclude Incomplete” on BrickLink). Each point is the average price of the sales in the 14 days up to that date. BrickLink's API doesn't provide sales older than 6 months.`}
         />
         <div className="mt-5 grid grid-cols-3 gap-4 border-t border-line pt-4">
-          {(["1D", "1W", "1M"] as const).map((k) => (
+          {(["1W", "1M", "3M"] as const).map((k) => (
             <div key={k}>
-              <div className="label">{k === "1D" ? "24 h" : k === "1W" ? "7 days" : "30 days"}</div>
+              <div className="label">
+                {k === "1W" ? "7 days" : k === "1M" ? "30 days" : "3 months"}
+              </div>
               <div className="mt-1 text-sm">
-                {m.changes[k] ? (
-                  <Delta abs={m.changes[k]!.abs} pctValue={m.changes[k]!.pct} />
+                {m.salesChanges[k] ? (
+                  <Delta abs={m.salesChanges[k]!.abs} pctValue={m.salesChanges[k]!.pct} />
                 ) : (
-                  <span className="text-muted">Not enough history</span>
+                  <span className="text-muted">Not enough sales</span>
                 )}
               </div>
             </div>

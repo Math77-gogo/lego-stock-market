@@ -467,3 +467,41 @@ export function marketOnlySeries(
   const scale = endValue / level;
   return index.map((p) => ({ t: p.t, v: Math.round(p.v * scale * 100) / 100 }));
 }
+
+// ---------------------------------------------------------------------------
+// Sales trend from BrickLink's individual sales (price_detail, last 6 months)
+// ---------------------------------------------------------------------------
+
+export interface SaleRecord {
+  quantity: number;
+  unitPrice: number;
+  dateOrdered: string; // ISO timestamp from BrickLink
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * One point per day that had sales: the quantity-weighted average price of all sales in the
+ * `windowDays` days up to and including that day. Smooths single odd sales while staying
+ * entirely made of real BrickLink transactions.
+ */
+export function salesTrendSeries(sales: SaleRecord[], windowDays = 14): SeriesPoint[] {
+  const valid = sales
+    .map((s) => ({ q: s.quantity, p: s.unitPrice, t: Date.parse(s.dateOrdered) }))
+    .filter((s) => s.q > 0 && s.p > 0 && Number.isFinite(s.t))
+    .sort((a, b) => a.t - b.t);
+  const days = [...new Set(valid.map((s) => Math.floor(s.t / DAY_MS)))];
+  return days.map((day) => {
+    const end = (day + 1) * DAY_MS;
+    const start = end - windowDays * DAY_MS;
+    let qty = 0;
+    let total = 0;
+    for (const s of valid) {
+      if (s.t >= start && s.t < end) {
+        qty += s.q;
+        total += s.q * s.p;
+      }
+    }
+    return { t: day * DAY_MS + DAY_MS / 2, v: Math.round((total / qty) * 100) / 100 };
+  });
+}

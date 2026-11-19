@@ -51,6 +51,8 @@ interface Props {
   emptyBody?: string;
   headlineValue?: number | null;
   headlineSuffix?: string;
+  /** Range buttons to offer (default: all). */
+  ranges?: RangeKey[];
 }
 
 export function PriceChart({
@@ -62,7 +64,9 @@ export function PriceChart({
   emptyBody,
   headlineValue,
   headlineSuffix,
+  ranges,
 }: Props) {
+  const rangeOptions = ranges ? RANGES.filter((r) => ranges.includes(r.key)) : RANGES;
   const [range, setRange] = useState<RangeKey>(defaultRange);
   const [hover, setHover] = useState<ChartPoint | null>(null);
   const rangeMs = RANGES.find((r) => r.key === range)!.ms;
@@ -179,7 +183,7 @@ export function PriceChart({
 
       <div className="mt-3 flex items-center justify-between gap-3">
         <div role="tablist" aria-label="Time range" className="flex gap-1 overflow-x-auto">
-          {RANGES.map((r) => (
+          {rangeOptions.map((r) => (
             <button
               key={r.key}
               role="tab"

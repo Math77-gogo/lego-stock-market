@@ -11,6 +11,7 @@ import {
   changeOverPeriod,
   referencePrice,
   soldSeries,
+  salesTrendSeries,
   type Change,
   type EngineOptions,
   type ReferencePrice,
@@ -62,6 +63,11 @@ export interface ConditionMarket {
   firstObservedAt: string | null;
   changes: Record<"1D" | "1W" | "1M", Change | null>;
   recentSales: { quantity: number; unitPrice: number; dateOrdered: string; currency: string }[];
+  /** Trend of BrickLink's individual sales over its 6-month window (available immediately). */
+  salesTrend: SeriesPoint[];
+  salesCount: number;
+  /** Changes of the sales trend over 7 days, 30 days and 3 months (null when sales are too sparse). */
+  salesChanges: Record<"1W" | "1M" | "3M", Change | null>;
 }
 
 export interface SetPageData {
@@ -93,8 +99,8 @@ export async function getSetPageData(
     latestObservations(db, [setId], "sold", mode),
     latestObservations(db, [setId], "stock", mode),
     observationSeries(db, [setId], "sold", null, mode),
-    recentSales(db, setId, "N", mode),
-    recentSales(db, setId, "U", mode),
+    recentSales(db, setId, "N", mode, 100_000),
+    recentSales(db, setId, "U", mode, 100_000),
     db.query<{ t: Date | null }>(
       "select max(last_success_at) as t from public.sync_targets where lego_set_id = $1",
       [setId],
@@ -105,6 +111,7 @@ export async function getSetPageData(
     const ref = referencePrice(latest, now, engine);
     const all = series.get(`${setId}:${c}`) ?? [];
     const points = soldSeries(all, engine.currency);
+    const trend = salesTrendSeries(sales.filter((x) => x.currency === engine.currency));
     return {
       reference: ref,
       sold: summarize(latest),
@@ -113,7 +120,14 @@ export async function getSetPageData(
       observationCount: all.length,
       firstObservedAt: all[0]?.observedAt.toISOString() ?? null,
       changes: changesFor(points, ref),
-      recentSales: sales,
+      recentSales: sales.slice(0, 10),
+      salesTrend: trend,
+      salesCount: sales.length,
+      salesChanges: {
+        "1W": changeOverPeriod(trend, PERIODS["1W"]),
+        "1M": changeOverPeriod(trend, PERIODS["1M"]),
+        "3M": changeOverPeriod(trend, PERIODS["3M"]),
+      },
     };
   };
   return {
